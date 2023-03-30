@@ -160,7 +160,7 @@ Web3Function.onRun(async (context: Web3FunctionContext) => {
   }
   totalAmountToRedeem = totalAmountValidTransaction + totalInterestAmountToRedeem;
   if (totalAmountToRedeem === 0) {
-    return;
+    throw("Nothing to redeem");
   }
   totalPerAssetToRedeem.push(["0xDB3cB4f2688daAB3BFf59C24cC42D4B6285828e9", "0xF09F0369aB0a875254fB565E52226c88f10Bc839", totalAmountToRedeem]);
   // let payment = await contractWithSigner.payOutERC20Invoice(paymentDataArray, totalPerAssetToRedeem);
