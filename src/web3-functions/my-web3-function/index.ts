@@ -1,6 +1,9 @@
 import { Web3Function, Web3FunctionContext} from "@gelatonetwork/web3-functions-sdk";
 import { Contract, ethers, BigNumber } from "ethers";
 import axios from "axios";
+import { paytrAbi } from './abi';
+// import * as dotenv from 'dotenv';
+// dotenv.config();
 
 // Fill this out with your Web3 Function logic
 Web3Function.onRun(async (context: Web3FunctionContext) => {
@@ -9,7 +12,7 @@ Web3Function.onRun(async (context: Web3FunctionContext) => {
   const abiCoder = ethers.utils.defaultAbiCoder;
   const abi = [
     "function payOutERC20Invoice(RedeemDataERC20[] calldata redeemData, totalPerAssetToRedeem[] calldata assetsToRedeem ) public onlyGelato nonReentrant"
-  ]
+  ];
   const cometAbi = [
     'event Supply(address indexed from, address indexed dst, uint256 amount)',
     'function supply(address asset, uint amount)',
@@ -18,14 +21,22 @@ Web3Function.onRun(async (context: Web3FunctionContext) => {
     'function getSupplyRate(uint) public view returns (uint)',
     'function getUtilization() public view returns (uint)',
   ];
+
+  const MUMBAI_URL = await context.secrets.get("MUMBAI_URL");
+  if (!MUMBAI_URL)
+    return { canExec: false, message: `MUMBAI_URL not set in secrets` };
+
+  const PRIVATE_KEY = await context.secrets.get("PRIVATE_KEY");
+  if (!PRIVATE_KEY)
+    return { canExec: false, message: `PRIVATE_KEY not set in secrets` };
+  console.log(PRIVATE_KEY);
+
   const cometAddress = "0xF09F0369aB0a875254fB565E52226c88f10Bc839"; //Polygon Mumbai cUSDCv3 address
   const comet = new ethers.Contract(cometAddress, cometAbi, provider);
-  const paytrContract = new Contract(contractAddress, abi, provider);
+  const paytrContract = new Contract(contractAddress, paytrAbi, provider);
   
-  const signer = provider.getSigner();
+  const signer = new ethers.Wallet(PRIVATE_KEY, provider);
   const contractWithSigner = paytrContract.connect(signer);
-
-  const MUMBAI_URL: string = `https://polygon-mumbai.g.alchemy.com/v2/${process.env.PROVIDER_URL}`;
 
   let redeemedInvoicesArray: any[] = [];
   let paymentReferenceArray: any[] = []; // get all the payment references that were prepaid
@@ -59,6 +70,7 @@ Web3Function.onRun(async (context: Web3FunctionContext) => {
     const txPaymentReference = txData[5];
     paymentReferenceArray.push({ txPaymentReference, txBlockNumber });
   }
+  console.log("Payment Ref. Array: ",paymentReferenceArray)
   
   const redeemedInvoices = await axios.post(MUMBAI_URL, {
     jsonrpc: '2.0',
@@ -76,7 +88,7 @@ Web3Function.onRun(async (context: Web3FunctionContext) => {
   });
   
   if (redeemedInvoices.data.result.length > 0) {
-    console.log(redeemedInvoices.data.result[0].data);
+    console.log("Line 91: ",redeemedInvoices.data.result[0].data);
   
     const redeemedInvoicesArray: string[] = [];
   
@@ -159,9 +171,9 @@ Web3Function.onRun(async (context: Web3FunctionContext) => {
     paymentDataArray.push([txAmount, txInterestAmount, txFeeAmount, txPayer, txPayee, txAsset, txCometAddress, txFeeAddress, txPaymentReference]);
   }
   totalAmountToRedeem = totalAmountValidTransaction + totalInterestAmountToRedeem;
-  if (totalAmountToRedeem === 0) {
-    throw("Nothing to redeem");
-  }
+  // if (totalAmountToRedeem === 0) {
+  //   throw("Nothing to redeem");
+  // }
   totalPerAssetToRedeem.push(["0xDB3cB4f2688daAB3BFf59C24cC42D4B6285828e9", "0xF09F0369aB0a875254fB565E52226c88f10Bc839", totalAmountToRedeem]);
   // let payment = await contractWithSigner.payOutERC20Invoice(paymentDataArray, totalPerAssetToRedeem);
   //   await payment.wait();
@@ -169,6 +181,6 @@ Web3Function.onRun(async (context: Web3FunctionContext) => {
   // Return execution call data
   return {
     canExec: true,
-    callData: contractWithSigner.payOutERC20Invoice(paymentDataArray, totalPerAssetToRedeem),
+    callData: await contractWithSigner.payOutERC20Invoice(paymentDataArray, totalPerAssetToRedeem),
   };
 });
