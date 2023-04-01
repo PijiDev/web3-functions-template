@@ -7,12 +7,12 @@ import { paytrAbi } from './abi';
 
 // Fill this out with your Web3 Function logic
 Web3Function.onRun(async (context: Web3FunctionContext) => {
-  const { userArgs, gelatoArgs, provider } = context;
+  const { userArgs, gelatoArgs, provider} = context;
   const contractAddress = "0x7aB45521E2ECA64D94a4cF4c2557419cbc938A71";
   const abiCoder = ethers.utils.defaultAbiCoder;
-  const abi = [
-    "function payOutERC20Invoice(RedeemDataERC20[] calldata redeemData, totalPerAssetToRedeem[] calldata assetsToRedeem ) public onlyGelato nonReentrant"
-  ];
+  // const abi = [
+  //   "function payOutERC20Invoice(RedeemDataERC20[] calldata redeemData, totalPerAssetToRedeem[] calldata assetsToRedeem ) public onlyGelato nonReentrant"
+  // ];
   const cometAbi = [
     'event Supply(address indexed from, address indexed dst, uint256 amount)',
     'function supply(address asset, uint amount)',
@@ -29,14 +29,13 @@ Web3Function.onRun(async (context: Web3FunctionContext) => {
   const PRIVATE_KEY = await context.secrets.get("PRIVATE_KEY");
   if (!PRIVATE_KEY)
     return { canExec: false, message: `PRIVATE_KEY not set in secrets` };
-  console.log(PRIVATE_KEY);
 
   const cometAddress = "0xF09F0369aB0a875254fB565E52226c88f10Bc839"; //Polygon Mumbai cUSDCv3 address
   const comet = new ethers.Contract(cometAddress, cometAbi, provider);
   const paytrContract = new Contract(contractAddress, paytrAbi, provider);
   
-  const signer = new ethers.Wallet(PRIVATE_KEY, provider);
-  const contractWithSigner = paytrContract.connect(signer);
+  //const signer = new ethers.Wallet(PRIVATE_KEY, provider);
+  //const contractWithSigner = paytrContract.connect(signer);
 
   let redeemedInvoicesArray: any[] = [];
   let paymentReferenceArray: any[] = []; // get all the payment references that were prepaid
@@ -113,7 +112,7 @@ Web3Function.onRun(async (context: Web3FunctionContext) => {
 
   for (let j = 0; j < paymentReferenceArray.length; j++) {
     const refString = paymentReferenceArray[j].txPaymentReference;
-    const structInfo = await contractWithSigner.paymentMapping(refString);
+    const structInfo = await paytrContract.paymentMapping(refString);
     console.log(structInfo);
     console.log("ref.: ", refString);
 
@@ -181,6 +180,6 @@ Web3Function.onRun(async (context: Web3FunctionContext) => {
   // Return execution call data
   return {
     canExec: true,
-    callData: await contractWithSigner.payOutERC20Invoice(paymentDataArray, totalPerAssetToRedeem),
+    callData: await paytrContract.payOutERC20Invoice(paymentDataArray, totalPerAssetToRedeem),
   };
 });
