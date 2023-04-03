@@ -10,6 +10,7 @@ Web3Function.onRun(async (context: Web3FunctionContext) => {
   const { userArgs, gelatoArgs, provider} = context;
   const contractAddress = "0x7aB45521E2ECA64D94a4cF4c2557419cbc938A71";
   const abiCoder = ethers.utils.defaultAbiCoder;
+  const signer = provider;
   // const abi = [
   //   "function payOutERC20Invoice(RedeemDataERC20[] calldata redeemData, totalPerAssetToRedeem[] calldata assetsToRedeem ) public onlyGelato nonReentrant"
   // ];
@@ -170,9 +171,9 @@ Web3Function.onRun(async (context: Web3FunctionContext) => {
     paymentDataArray.push([txAmount, txInterestAmount, txFeeAmount, txPayer, txPayee, txAsset, txCometAddress, txFeeAddress, txPaymentReference]);
   }
   totalAmountToRedeem = totalAmountValidTransaction + totalInterestAmountToRedeem;
-  // if (totalAmountToRedeem === 0) {
-  //   throw("Nothing to redeem");
-  // }
+  if (totalAmountToRedeem === 0) {
+    return { canExec: false, message: "Nothing to redeem" };
+  }
   totalPerAssetToRedeem.push(["0xDB3cB4f2688daAB3BFf59C24cC42D4B6285828e9", "0xF09F0369aB0a875254fB565E52226c88f10Bc839", totalAmountToRedeem]);
   // let payment = await contractWithSigner.payOutERC20Invoice(paymentDataArray, totalPerAssetToRedeem);
   //   await payment.wait();
@@ -180,6 +181,6 @@ Web3Function.onRun(async (context: Web3FunctionContext) => {
   // Return execution call data
   return {
     canExec: true,
-    callData: await paytrContract.payOutERC20Invoice(paymentDataArray, totalPerAssetToRedeem),
+    callData: paytrContract.interface.encodeFunctionData("payOutERC20Invoice", [paymentDataArray, totalPerAssetToRedeem]),
   };
 });
